@@ -1,4 +1,6 @@
 # @hicnet/admin
-Admin dashboard for managing users and system settings.
+Admin dashboard for managing users.
+
+## Next Steps (Bob)
 - Users table (ID, Wallet Address, Role, CreatedAt)
-- Admin-only controls
+- Mock add/delete actions

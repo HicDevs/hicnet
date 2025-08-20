@@ -1,5 +1,7 @@
 # @hicnet/docs
-Documentation for Hickory projects:
-- Whitepaper drafts
-- Architecture diagrams
-- Contribution guidelines
+Documentation for Hickory project.
+
+## Structure
+- whitepaper/ → Whitepaper drafts
+- adr/ → Architecture Decision Records
+- contributing/ → Contribution guidelines

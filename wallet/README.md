@@ -1,5 +1,6 @@
 # @hicnet/wallet
 Frontend wallet app with Keplr login integration.
-- User authentication
-- View balances
-- Send/receive HIC
+
+## Next Steps (Lara)
+- Add Keplr connect button
+- Show basic account view (address, balance)

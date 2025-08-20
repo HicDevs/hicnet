@@ -1,0 +1,8 @@
+{
+  "name": "@hicnet/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'TODO: Bob implement Users table here'"
+  }
+}
