@@ -1,14 +1,18 @@
-# hicnet
+# hicnet 
 # 🌳 Hickory – Monorepo
 
 This is the **official monorepo** for the Hickory Blockchain ecosystem.  
-It contains all core components: **Wallet**, **Admin Dashboard**, **Backend**, **HICScan**, and **HickoryDex**.
+It contains all core components: **Wallet**, **Admin Dashboard**, **Backend**, **Explorer (HICScan)**, and **HickoryDex**.
+
+---
+
+## 📖 Overview
+Hickory is a next-generation blockchain ecosystem built on **Cosmos + IBC** with Proof-of-Stake consensus.  
+Our mission is to provide a scalable, secure, and interoperable platform for decentralized finance and beyond.
 
 ---
 
 ## 📦 Structure
-
-
 hicnet/
 ├── wallet/ # User wallet (Keplr, staking, send/receive)
 ├── admin/ # Admin dashboard
@@ -16,6 +20,21 @@ hicnet/
 ├── docs/ # Documentation (Whitepaper drafts, ADRs)
 ├── hicscan/ # Explorer module
 └── dex/ # HickoryDex (AMM / liquidity pools)
+
+---
+
+## 🚀 Roadmap
+- **v0.1** → Wallet placeholder, backend `/health` API ✅
+- **v0.2** → Admin Users table, HICScan MVP
+- **v1.0** → HickoryDex Alpha launch
+
+---
+
+## 🌐 Links
+📖 Documentation: [`/docs`](./docs)  
+🔗 Discord: [Hickory Dev Hub](https://discord.gg/tRKpfcKy)  
+
+
 
 ---
 
