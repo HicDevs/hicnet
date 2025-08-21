@@ -2,7 +2,7 @@ name: Hickory Weekly Report
 
 on:
   schedule:
-    - cron: "0 6 * * MON"     # hétfő 09:00 UTC
+    - cron: "0 6 * * MON"   # 06:00 UTC ≈ 07:00 CET (tél) / 08:00 CEST (nyár)
   workflow_dispatch:
 
 jobs:
@@ -17,38 +17,66 @@ jobs:
             const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
             const { owner, repo } = context.repo;
 
-            const mergedPRs = (await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'closed', per_page: 100 }
-            )).filter(p => p.merged_at && p.merged_at >= since);
+            // PR-k (merged az elmúlt 7 napban)
+            const prsClosed = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'closed', per_page: 100 });
+            const mergedPRs = prsClosed.filter(p => p.merged_at && p.merged_at >= since);
 
-            const openPRs = (await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }
-            )).filter(p => new Date(p.updated_at).toISOString() >= since);
+            // Nyitott PR-k, amik frissültek az elmúlt 7 napban
+            const openPRs = (await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }))
+              .filter(p => new Date(p.updated_at).toISOString() >= since);
 
-            const commits = (await github.rest.repos.listCommits({
-              owner, repo, since, per_page: 50
-            })).data;
+            // Issues (nyitott/zárt az elmúlt 7 napban)
+            const issuesAll = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100, since });
+            const openedIssues = issuesAll.filter(i => !i.pull_request && new Date(i.created_at).toISOString() >= since);
+            const closedIssues = issuesAll.filter(i => !i.pull_request && i.closed_at && i.closed_at >= since);
 
-            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}`;
-            const cLine  = c => `• ${c.sha.substring(0,7)} ${c.commit.message.split('\n')[0]} — by ${c.commit.author.name}`;
-            const list   = (arr, map, max=8) => arr.slice(0, max).map(map).join('\n') || '• none';
+            // Commitek az elmúlt 7 napban
+            const commits = (await github.rest.repos.listCommits({ owner, repo, since, per_page: 100 })).data;
+
+            // Releases (utolsó / utóbbi 7 napban)
+            const releases = await github.paginate(github.rest.repos.listReleases, { owner, repo, per_page: 20 });
+            const recentReleases = releases.filter(r => r.published_at && r.published_at >= since);
+            const lastRelease = releases[0];
+
+            const link = (text, url) => `[${text}](${url})`;
+            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}  ${link('PR', p.html_url)}`;
+            const isLine = i => `• #${i.number} ${i.title} — by ${i.user.login}  ${link('Issue', i.html_url)}`;
+            const cLine  = c => `• ${c.sha.substring(0,7)} — ${c.commit.message.split('\\n')[0]}  ${link('Commit', c.html_url)}`;
+
+            const list = (arr, map, max=10) => arr.slice(0, max).map(map).join('\n') || '• none';
+
+            const header = `📊 **Hickory Weekly Report**  _(since ${since.substring(0,10)})_`;
+            const mergedBlock = `✅ **Merged PRs (${mergedPRs.length})**\n${list(mergedPRs, prLine)}`;
+            const openBlock   = `🧩 **Open PRs updated (${openPRs.length})**\n${list(openPRs, prLine)}`;
+            const issuesBlock = `❗ **Issues — opened: ${openedIssues.length}, closed: ${closedIssues.length}**\n` +
+                                `Opened:\n${list(openedIssues, isLine)}\n\nClosed:\n${list(closedIssues, isLine)}`;
+            const commitsBlock= `📦 **Commits (${commits.length})**\n${list(commits, cLine, 15)}`;
+            const releasesBlock = lastRelease
+              ? `🏷️ **Last release:** ${lastRelease.tag_name} — ${new Date(lastRelease.published_at).toISOString().substring(0,10)}  ${link('Release', lastRelease.html_url)}\n` +
+                (recentReleases.length ? `Recent (7d): ${recentReleases.map(r => r.tag_name).join(', ')}` : 'Recent (7d): none')
+              : '🏷️ **Last release:** none';
+
+            const quickLinks =
+              `🔗 **Quick links**\n` +
+              `• ${link('PRs', \`https://github.com/\${owner}/\${repo}/pulls\`)}  ` +
+              `• ${link('Issues', \`https://github.com/\${owner}/\${repo}/issues\`)}  ` +
+              `• ${link('Commits', \`https://github.com/\${owner}/\${repo}/commits\`)}  ` +
+              `• ${link('Actions', \`https://github.com/\${owner}/\${repo}/actions\`)}  ` +
+              `• ${link('Releases', \`https://github.com/\${owner}/\${repo}/releases\`)}`;
 
             const text = [
-              `📊 **Hickory Weekly Report** (since ${since.substring(0,10)})`,
-              ``,
-              `**Merged PRs (${mergedPRs.length})**`,
-              list(mergedPRs, prLine),
-              ``,
-              `**Open PRs updated (${openPRs.length})**`,
-              list(openPRs, prLine),
-              ``,
-              `**Commits (${commits.length})**`,
-              list(commits, cLine),
-              ``,
-              `Repo: ${owner}/${repo}`
+              header, '',
+              mergedBlock, '',
+              openBlock, '',
+              issuesBlock, '',
+              commitsBlock, '',
+              releasesBlock, '',
+              quickLinks, '',
+              `Repo: \`${owner}/${repo}\``
             ].join('\n');
 
             core.setOutput('msg', text);
+
       - name: Send Weekly Report to Discord
         uses: Ilshidur/action-discord@master
         env:
