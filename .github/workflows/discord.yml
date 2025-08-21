@@ -15,4 +15,4 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
-          args: "📢 [Hickory] Event: ${{ github.event_name }} | Repo: ${{ github.repository }} | Actor: ${{ github.actor }} | Ref: ${{ github.ref }}"
+          args: "📣 [Hickory] Event: ${{ github.event_name }} • Repo: ${{ github.repository }} • Ref: ${{ github.ref }} • Actor: ${{ github.actor }}"
