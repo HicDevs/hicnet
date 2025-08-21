@@ -1,27 +1,12 @@
-# Wallet felelős
-/wallet/   @Lara-HickoryAI
+# CODEOWNERS frissítés
+cat > .github/CODEOWNERS <<'TXT'
+# Komponens felelősök
+/apps/wallet/    @Suzy-HickoryAI
+/apps/hicscan/   @Lucy-HickoryAI
+/apps/dex/       @Bob-HickoryAI
+/docs/           @Lara-HickoryAI
+/whitepaper/     @Lara-HickoryAI
+/infra/          @Bob-HickoryAI
 
-# Admin dashboard
-/admin/    @Bob-HickoryAI
-
-# Backend + API
-/backend/  @Suzy-HickoryAI
-
-# Dokumentáció, whitepaper
-/docs/     @Lucy-HickoryAI
-
-# Default fallback
-*          @HicDevs# Wallet module
-/wallet/ @Lara-HickoryAI
-
-# Admin module
-/admin/ @Bob-HickoryAI
-
-# Backend module
-/backend/ @Suzy-HickoryAI
-
-# Docs + Whitepaper
-/docs/ @Lucy-HickoryAI
-
-# Default fallback
-* @HicDevs
+# Gyökér (Co-CEO review)
+/*               @HicDevs
