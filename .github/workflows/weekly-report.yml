@@ -1,62 +1,65 @@
-name: Hickory Weekly Report
+name: Weekly Status to Discord
 
 on:
   schedule:
-    - cron: "0 9 * * MON"   # minden hétfő 09:00 UTC
-  workflow_dispatch:         # kézi indításra is
+    # Hétfő 07:00 UTC (hazai időben nyáron 09:00, télen 08:00). Átírható.
+    - cron: "0 7 * * MON"
+  workflow_dispatch:
 
 jobs:
-  report:
+  weekly:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+    env:
+      GH_TOKEN: ${{ github.token }}   # gh CLI-hez
     steps:
-      - name: Build weekly summary (last 7 days)
-        id: build
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
-            const { owner, repo } = context.repo;
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            // Merged PR-k az elmúlt 7 napban
-            const mergedPRs = (await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'closed', per_page: 100 }
-            )).filter(p => p.merged_at && p.merged_at >= since);
+      - name: Build weekly summary
+        id: summary
+        run: |
+          set -euo pipefail
+          REPO="${{ github.repository }}"
+          DEFAULT_BRANCH="$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)"
+          OPEN_ISSUES="$(gh issue list --state open --json number --jq 'length' || echo 0)"
+          OPEN_PRS="$(gh pr list --state open --json number --jq 'length' || echo 0)"
+          MERGED_PRS="$(gh pr list --state merged --json number --jq 'length' || echo 0)"
+          CLOSED_ISSUES="$(gh issue list --state closed --search 'closed:>=-7d' --json number --jq 'length' || echo 0)"
+          COMMITS="$(gh api repos/$REPO/commits --paginate -F sha="$DEFAULT_BRANCH" -f since="$(date -u -d '7 days ago' +%Y-%m-%dT%H:%M:%SZ)" --jq 'length' || echo 0)"
+          LAST_RELEASE="$(gh release list --limit 1 --json tagName,publishedAt --jq '.[0] // {}' || echo '{}')"
+          REL_TAG="$(echo "$LAST_RELEASE" | jq -r '.tagName // "—"')"
+          REL_DATE="$(echo "$LAST_RELEASE" | jq -r '.publishedAt // "—"')"
 
-            // Nyitott PR-k, amik frissültek az elmúlt 7 napban
-            const openPRs = (await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }
-            )).filter(p => new Date(p.updated_at).toISOString() >= since);
+          PRS_URL="https://github.com/$REPO/pulls"
+          ISSUES_URL="https://github.com/$REPO/issues"
+          ACTIONS_URL="https://github.com/$REPO/actions"
+          COMMITS_URL="https://github.com/$REPO/commits/$DEFAULT_BRANCH"
+          RELEASES_URL="https://github.com/$REPO/releases"
 
-            // Commitek az elmúlt 7 napban
-            const commits = (await github.rest.repos.listCommits({
-              owner, repo, since, per_page: 50
-            })).data;
+          echo "text<<MSG" >> $GITHUB_OUTPUT
+          echo "📊 **Hickory – heti státusz**" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "• Repo: **$REPO**  |  Branch: **$DEFAULT_BRANCH**" >> $GITHUB_OUTPUT
+          echo "• Nyitott PR-k: **$OPEN_PRS**  |  Nyitott issue-k: **$OPEN_ISSUES**" >> $GITHUB_OUTPUT
+          echo "• Múlt héten merge-ölt PR-k: **$MERGED_PRS**  |  Zárt issue-k (7d): **$CLOSED_ISSUES**" >> $GITHUB_OUTPUT
+          echo "• Commitok (7d): **$COMMITS**" >> $GITHUB_OUTPUT
+          echo "• Utolsó release: **$REL_TAG** (_$REL_DATE_)" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "🔗 Hivatkozások:" >> $GITHUB_OUTPUT
+          echo "  • PR-k: $PRS_URL" >> $GITHUB_OUTPUT
+          echo "  • Issue-k: $ISSUES_URL" >> $GITHUB_OUTPUT
+          echo "  • Commitok: $COMMITS_URL" >> $GITHUB_OUTPUT
+          echo "  • Actions futások: $ACTIONS_URL" >> $GITHUB_OUTPUT
+          echo "  • Release-ek: $RELEASES_URL" >> $GITHUB_OUTPUT
+          echo "MSG" >> $GITHUB_OUTPUT
 
-            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}`;
-            const cLine  = c => `• ${c.sha.substring(0,7)} ${c.commit.message.split('\\n')[0]} — by ${c.commit.author.name}`;
-
-            const list = (arr, map, max=8) => arr.slice(0, max).map(map).join('\n') || '• none';
-
-            const text = [
-              `📊 **Hickory Weekly Report** (since ${since.substring(0,10)})`,
-              ``,
-              `**Merged PRs (${mergedPRs.length})**`,
-              list(mergedPRs, prLine),
-              ``,
-              `**Open PRs updated (${openPRs.length})**`,
-              list(openPRs, prLine),
-              ``,
-              `**Commits (${commits.length})**`,
-              list(commits, cLine),
-              ``,
-              `Repo: ${owner}/${repo}`
-            ].join('\n');
-
-            core.setOutput('msg', text);
-
-      - name: Send Weekly Report to Discord
+      - name: Send to Discord
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
-          args: ${{ steps.build.outputs.msg }}
+          args: ${{ steps.summary.outputs.text }}
