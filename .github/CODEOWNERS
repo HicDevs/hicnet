@@ -1,4 +1,17 @@
-# Wallet module
+# Wallet felelős
+/wallet/   @Lara-HickoryAI
+
+# Admin dashboard
+/admin/    @Bob-HickoryAI
+
+# Backend + API
+/backend/  @Suzy-HickoryAI
+
+# Dokumentáció, whitepaper
+/docs/     @Lucy-HickoryAI
+
+# Default fallback
+*          @HicDevs# Wallet module
 /wallet/ @Lara-HickoryAI
 
 # Admin module
