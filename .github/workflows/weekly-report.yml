@@ -55,7 +55,7 @@ jobs:
           echo "  • Commitok: $COMMITS_URL" >> $GITHUB_OUTPUT
           echo "  • Actions futások: $ACTIONS_URL" >> $GITHUB_OUTPUT
           echo "  • Release-ek: $RELEASES_URL" >> $GITHUB_OUTPUT
-          echo "MSG" >> $GITHUB_OUTPUT
+ 
 
       - name: Send to Discord
         uses: Ilshidur/action-discord@master
