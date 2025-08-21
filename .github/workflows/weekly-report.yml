@@ -1,0 +1,62 @@
+name: Hickory Weekly Report
+
+on:
+  schedule:
+    - cron: "0 9 * * MON"   # minden hétfő 09:00 UTC
+  workflow_dispatch:         # kézi indításra is
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build weekly summary (last 7 days)
+        id: build
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+            const { owner, repo } = context.repo;
+
+            // Merged PR-k az elmúlt 7 napban
+            const mergedPRs = (await github.paginate(
+              github.rest.pulls.list, { owner, repo, state: 'closed', per_page: 100 }
+            )).filter(p => p.merged_at && p.merged_at >= since);
+
+            // Nyitott PR-k, amik frissültek az elmúlt 7 napban
+            const openPRs = (await github.paginate(
+              github.rest.pulls.list, { owner, repo, state: 'open', per_page: 100 }
+            )).filter(p => new Date(p.updated_at).toISOString() >= since);
+
+            // Commitek az elmúlt 7 napban
+            const commits = (await github.rest.repos.listCommits({
+              owner, repo, since, per_page: 50
+            })).data;
+
+            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}`;
+            const cLine  = c => `• ${c.sha.substring(0,7)} ${c.commit.message.split('\\n')[0]} — by ${c.commit.author.name}`;
+
+            const list = (arr, map, max=8) => arr.slice(0, max).map(map).join('\n') || '• none';
+
+            const text = [
+              `📊 **Hickory Weekly Report** (since ${since.substring(0,10)})`,
+              ``,
+              `**Merged PRs (${mergedPRs.length})**`,
+              list(mergedPRs, prLine),
+              ``,
+              `**Open PRs updated (${openPRs.length})**`,
+              list(openPRs, prLine),
+              ``,
+              `**Commits (${commits.length})**`,
+              list(commits, cLine),
+              ``,
+              `Repo: ${owner}/${repo}`
+            ].join('\n');
+
+            core.setOutput('msg', text);
+
+      - name: Send Weekly Report to Discord
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        with:
+          args: ${{ steps.build.outputs.msg }}
