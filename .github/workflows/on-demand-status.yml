@@ -1,69 +1,38 @@
 name: Hickory On-Demand Status
 
 on:
-  workflow_dispatch:
-    inputs:
-      who:
-        description: "Ki? (bob|lara|suzy|lucy|all)"
-        required: true
-        default: "all"
-      scope:
-        description: "Komponens (wallet|hicscan|dex|infra|docs|whitepaper|all)"
-        required: true
-        default: "all"
-      sinceDays:
-        description: "Hány napra vissza?"
-        required: true
-        default: "7"
+  workflow_dispatch: {}
 
 jobs:
   status:
     runs-on: ubuntu-latest
     steps:
-      - name: Build status text
-        id: build
-        uses: actions/github-script@v7
-        with:
-          script: |
-            // === SAFE UTC DATES (no locale parsing) ===
-            const HOURS = 24;
-            const now = new Date();
-            const sinceISO = new Date(now.getTime() - HOURS*60*60*1000).toISOString();
-            
-            const { owner, repo } = context.repo;
-            
-            // Issues updated in last 24h (exclude PRs)
-            const issuesAll = await github.paginate(
-              github.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100, since: sinceISO }
-            );
-            const issuesDaily = issuesAll.filter(i => !i.pull_request);
-            
-            // PRs updated in last 24h
-            const prsRecent = (await github.paginate(
-              github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 }
-            )).filter(p => new Date(p.updated_at).toISOString() >= sinceISO);
-            
-            // Formatters
-            const link = (t,u) => `[${t}](${u})`;
-            const isLine = i => `• #${i.number} ${i.title} — by ${i.user.login}  ${link('Issue', i.html_url)}`;
-            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}  ${link('PR', p.html_url)}`;
-            const list = (arr, map, max=12) => arr.slice(0, max).map(map).join('\n') || '• none';
-            
-            const header = `📅 **Hickory Daily Status**  _(since ${sinceISO.substring(0,10)} ${sinceISO.substring(11,16)} UTC)_`;
-            const text = [
-              header, '',
-              `**Daily státusz issue-k** (${issuesDaily.length})`,
-              list(issuesDaily, isLine), '',
-              `**PR-ek (recent)** (${prsRecent.length})`,
-              list(prsRecent, prLine), '',
-              `Repo: \`${owner}/${repo}\``
-            ].join('\n');
-            
-            core.setOutput('msg', text);
-
-      - name: Send to Discord
+      - name: Send Daily Status to Discord
         uses: Ilshidur/action-discord@master
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
-          args: ${{ steps.build.outputs.msg }}
+          args: |
+            📣 **Hickory – napi státusz**
+
+            • Wallet: specifikáció/UX váz szükséges, API-szerződés előkészítése folyamatban. ⟨confirm⟩
+            • HICScan: indexer + sémák tervezése indul; első block/tx lekérdezések PoC. ⟨confirm⟩
+            • HickoryDex: MVP-scope (pool, swap, liquidity) definiálás előtt. ⟨confirm⟩
+            • Backend: /version + /health, OpenAPI stub, Dockerize → következő sprint fókusz.
+            • Infra: Discord értesítések (push/PR/merge), Weekly & On-demand report **aktív**; main védett (PR-kötelező); CODEOWNERS él.
+            • Whitepaper/Funding: outline + deck v1 hiányzik, data room előkészítendő. ⟨confirm⟩
+            • Docs: Docusaurus/MkDocs keret + ADR napló bevezetése.
+
+            👤 **Felelősök**
+            – Lara: Wallet UX/UI + kliens váz
+            – Bob: Backend/API + indexer PoC
+            – Lucy: HICScan explorer
+            – Suzy: Docs/QA + riportok
+            – Co-CEO: Funding/Partners
+
+            ⏭️ **Next 48h**
+            1) Repo baseline (docs, contributing, release tags)
+            2) Backend OpenAPI + Dockerfile
+            3) Wallet flow & szerződés
+            4) Explorer PoC első végpontok
+            5) Riport metrikák bővítése (issues/releases)
