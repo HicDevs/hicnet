@@ -2,7 +2,7 @@ name: Hickory Weekly Report
 
 on:
   schedule:
-    - cron: "0 9 * * MON"     # hétfő 09:00 UTC
+    - cron: "0 6 * * MON"     # hétfő 09:00 UTC
   workflow_dispatch:
 
 jobs:
