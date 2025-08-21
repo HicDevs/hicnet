@@ -25,54 +25,31 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const who = core.getInput('who');
-            const scope = core.getInput('scope');
-            const sinceDays = parseInt(core.getInput('sinceDays'), 10);
-            const since = new Date(Date.now() - sinceDays*24*60*60*1000).toISOString();
+            // === SAFE UTC DATES (no locale parsing) ===
+            const HOURS = 24;
+            const now = new Date();
+            const sinceISO = new Date(now.getTime() - HOURS*60*60*1000).toISOString();
+            
             const { owner, repo } = context.repo;
-
-            const mapWho = {
-              bob:  'Bob-HickoryAI',
-              lara: 'Lara-HickoryAI',
-              suzy: 'Suzy-HickoryAI',
-              lucy: 'Lucy-HickoryAI'
-            };
-            const userFilter = (who === 'all') ? null : mapWho[who.toLowerCase()];
-            const labelMap = {
-              wallet: 'comp:wallet',
-              hicscan: 'comp:hicscan',
-              dex: 'comp:dex',
-              infra: 'comp:infra',
-              docs: 'comp:docs',
-              whitepaper: 'comp:whitepaper'
-            };
-            const labelFilter = (scope === 'all') ? null : labelMap[scope.toLowerCase()];
-
-            const prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 });
-            const issues = await github.paginate(github.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100, since });
-
-            const matchUser = (login) => !userFilter || (login && login.toLowerCase() === userFilter.toLowerCase());
-            const matchLabel = (labels=[]) => !labelFilter || labels.some(l => l.name === labelFilter);
-
-            const prsRecent = prs.filter(p =>
-              new Date(p.updated_at) >= new Date(since) &&
-              matchUser(p.user?.login) &&
-              matchLabel(p.labels)
+            
+            // Issues updated in last 24h (exclude PRs)
+            const issuesAll = await github.paginate(
+              github.rest.issues.listForRepo, { owner, repo, state: 'all', per_page: 100, since: sinceISO }
             );
-
-            const issuesDaily = issues.filter(i =>
-              !i.pull_request &&
-              matchLabel(i.labels) &&
-              matchUser(i.assignee?.login || i.user?.login) &&
-              (i.labels || []).some(l => l.name === 'status:daily')
-            );
-
-            const prLine = p => `• PR #${p.number} ${p.title} — ${p.state.toUpperCase()} — by ${p.user.login}  ${p.html_url}`;
-            const isLine = i => `• ${i.title} — by ${i.user.login}  ${i.html_url}`;
-
-            const list = (arr, f, max=12) => arr.slice(0, max).map(f).join('\n') || '• none';
-
-            const header = `🧭 **On-Demand Status** | who: \`${who}\`, scope: \`${scope}\`, since: ${since.substring(0,10)}`;
+            const issuesDaily = issuesAll.filter(i => !i.pull_request);
+            
+            // PRs updated in last 24h
+            const prsRecent = (await github.paginate(
+              github.rest.pulls.list, { owner, repo, state: 'all', per_page: 100 }
+            )).filter(p => new Date(p.updated_at).toISOString() >= sinceISO);
+            
+            // Formatters
+            const link = (t,u) => `[${t}](${u})`;
+            const isLine = i => `• #${i.number} ${i.title} — by ${i.user.login}  ${link('Issue', i.html_url)}`;
+            const prLine = p => `• #${p.number} ${p.title} — by ${p.user.login}  ${link('PR', p.html_url)}`;
+            const list = (arr, map, max=12) => arr.slice(0, max).map(map).join('\n') || '• none';
+            
+            const header = `📅 **Hickory Daily Status**  _(since ${sinceISO.substring(0,10)} ${sinceISO.substring(11,16)} UTC)_`;
             const text = [
               header, '',
               `**Daily státusz issue-k** (${issuesDaily.length})`,
@@ -81,7 +58,7 @@ jobs:
               list(prsRecent, prLine), '',
               `Repo: \`${owner}/${repo}\``
             ].join('\n');
-
+            
             core.setOutput('msg', text);
 
       - name: Send to Discord
