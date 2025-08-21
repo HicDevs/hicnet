@@ -13,6 +13,6 @@ jobs:
       - name: Send Discord notification
         uses: Ilshidur/action-discord@master
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
           args: "📢 [Hickory] Event: ${{ github.event_name }} | Repo: ${{ github.repository }} | Actor: ${{ github.actor }} | Ref: ${{ github.ref }}"
