@@ -4,15 +4,58 @@ on:
   push:
     branches: [ "main" ]
   pull_request:
-    types: [opened, closed]
+    types: [opened, reopened, synchronize, closed]
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Discord notification
+      # PUSH → link a commitre
+      - name: Discord (push)
+        if: ${{ github.event_name == 'push' }}
         uses: Ilshidur/action-discord@master
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
         with:
-          args: "📢 [Hickory] Event: ${{ github.event_name }} | Repo: ${{ github.repository }} | Actor: ${{ github.actor }} | Ref: ${{ github.ref }}"
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          args: |
+            🚀 **Push to `${{ github.ref_name }}`**
+            • Repo: **${{ github.repository }}**
+            • Author: **${{ github.actor }}**
+            • Commit: `${{ github.sha }}`
+            👉 https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
+      # PR OPEN/UPDATE → link a PR-re
+      - name: Discord (PR opened/reopened/sync)
+        if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
+        uses: Ilshidur/action-discord@master
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          args: |
+            🔀 **PR #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}**
+            • Repo: **${{ github.repository }}**
+            • Author: **${{ github.actor }}**
+            • State: **${{ github.event.action }}**
+            👉 ${{ github.event.pull_request.html_url }}
+
+      # PR MERGE → külön jelzés
+      - name: Discord (PR merged)
+        if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true }}
+        uses: Ilshidur/action-discord@master
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          args: |
+            ✅ **PR merged!**  #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}
+            • Repo: **${{ github.repository }}**
+            • Merged by: **${{ github.actor }}**
+            👉 ${{ github.event.pull_request.html_url }}
+
+      # PR CLOSED (nem merge) → külön jelzés
+      - name: Discord (PR closed without merge)
+        if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged != true }}
+        uses: Ilshidur/action-discord@master
+        with:
+          webhook: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          args: |
+            🚫 **PR closed (not merged)**  #${{ github.event.pull_request.number }} — ${{ github.event.pull_request.title }}
+            • Repo: **${{ github.repository }}**
+            • Closed by: **${{ github.actor }}**
+            👉 ${{ github.event.pull_request.html_url }}
